@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPA Version Viewer</title>
+  <style>
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #111827;
+      --panel: rgba(255,255,255,0.08);
+      --panel-strong: rgba(255,255,255,0.12);
+      --border: rgba(255,255,255,0.14);
+      --text: #e5eefb;
+      --muted: #a8b5c9;
+      --accent: #60a5fa;
+      --accent-2: #38bdf8;
+      --success: #22c55e;
+      --danger: #f87171;
+      --shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 24%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .sub {
+      margin: 0;
+      max-width: 780px;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+
+    .card-inner {
+      padding: 22px;
+    }
+
+    .upload-zone {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 280px;
+      padding: 24px;
+      border: 1.5px dashed rgba(255,255,255,0.18);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      text-align: center;
+      transition: 180ms ease;
+      cursor: pointer;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: rgba(96,165,250,0.8);
+      background: linear-gradient(180deg, rgba(96,165,250,0.12), rgba(255,255,255,0.03));
+      transform: translateY(-1px);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon {
+      width: 62px;
+      height: 62px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, rgba(96,165,250,0.25), rgba(56,189,248,0.18));
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 28px;
+    }
+
+    .upload-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .upload-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 180ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.1);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #04111f;
+      border: none;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .badge {
+      padding: 7px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .error {
+      display: none;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(248, 113, 113, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .tip {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .summary {
+      display: grid;
+      gap: 14px;
+    }
+
+    .headline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .headline h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .path {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-all;
+      margin-bottom: 14px;
+    }
+
+    .kv-grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+    }
+
+    .kv-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kv-value {
+      font-size: 15px;
+      word-break: break-word;
+    }
+
+    .panes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .pane {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 22px;
+      overflow: hidden;
+    }
+
+    .pane-head {
+      padding: 16px 18px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .pane-head h3 {
+      margin: 0 0 4px;
+      font-size: 16px;
+    }
+
+    .pane-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    pre {
+      margin: 0;
+      min-height: 400px;
+      max-height: 720px;
+      overflow: auto;
+      padding: 18px;
+      font-size: 12px;
+      line-height: 1.65;
+      tab-size: 2;
+    }
+
+    .json { background: rgba(2,6,23,0.78); color: #dbeafe; }
+    .raw { background: rgba(255,255,255,0.03); color: #e5eefb; white-space: pre-wrap; word-break: break-word; }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 650px;
+      text-align: center;
+      padding: 32px;
+      color: var(--muted);
+    }
+
+    .empty strong {
+      display: block;
+      color: var(--text);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .panes { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding: 24px 14px 40px; }
+      .kv { grid-template-columns: 1fr; }
+      .actions { grid-template-columns: 1fr; }
+      .card-inner { padding: 16px; }
+      .upload-zone { min-height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="pill">Local browser tool · upload IPA · read Info.plist</div>
+      <h1>IPA Version Viewer</h1>
+      <p class="sub">
+        Drop in an iOS <code>.ipa</code> file and extract <code>Info.plist</code> to view the bundle identifier, marketing version, build version, and full plist content. This runs entirely in the browser.
+      </p>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <div class="card-inner">
+          <label class="upload-zone" id="uploadZone">
+            <input id="ipaFile" type="file" accept=".ipa,application/octet-stream" />
+            <div>
+              <div class="upload-icon">📦</div>
+              <div class="upload-title">Upload IPA</div>
+              <div class="upload-desc">Click to browse or drag and drop your <code>.ipa</code> here.</div>
+            </div>
+          </label>
+
+          <div class="actions">
+            <button id="resetBtn">Reset</button>
+            <button id="copyBtn" class="primary" disabled>Copy JSON</button>
+          </div>
+
+          <div class="meta" id="meta"></div>
+          <div class="error" id="error"></div>
+          <div class="tip">
+            If nothing happens when you open this page directly, run it through a simple local server such as <code>python -m http.server 8000</code> and open <code>http://localhost:8000</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner" id="rightPanel">
+          <div class="empty" id="emptyState">
+            <div>
+              <strong>No IPA loaded yet</strong>
+              Upload a file to see bundle version details and the parsed plist.
+            </div>
+          </div>
+
+          <div class="summary" id="resultWrap" style="display:none;">
+            <div class="headline">
+              <h2>Bundle Summary</h2>
+              <span class="badge" id="loadedBadge">Loaded</span>
+            </div>
+            <div class="path" id="plistPath"></div>
+            <div class="kv-grid" id="summaryGrid"></div>
+
+            <div class="panes">
+              <div class="pane">
+                <div class="pane-head">
+                  <h3>Parsed Info.plist</h3>
+                  <p>Structured JSON output.</p>
+                </div>
+                <pre id="jsonOutput" class="json"></pre>
+              </div>
+
+              <div class="pane">
+                <div class="pane-head">
+                  <h3>Raw Preview</h3>
+                  <p>XML plists are shown directly. Binary plists are summarized.</p>
+                </div>
+                <pre id="rawOutput" class="raw"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import JSZip from 'https://esm.sh/jszip@3.10.1';
+    import plist from 'https://esm.sh/plist@3.1.0';
+    import { parseBuffer } from 'https://esm.sh/bplist-parser@0.3.2';
+
+    const uploadZone = document.getElementById('uploadZone');
+    const ipaFile = document.getElementById('ipaFile');
+    const resetBtn = document.getElementById('resetBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const meta = document.getElementById('meta');
+    const errorBox = document.getElementById('error');
+    const emptyState = document.getElementById('emptyState');
+    const resultWrap = document.getElementById('resultWrap');
+    const plistPath = document.getElementById('plistPath');
+    const summaryGrid = document.getElementById('summaryGrid');
+    const jsonOutput = document.getElementById('jsonOutput');
+    const rawOutput = document.getElementById('rawOutput');
+
+    let currentData = null;
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function setMeta(items = []) {
+      meta.innerHTML = items.map(item => `<span class="badge">${escapeHtml(item)}</span>`).join('');
+    }
+
+    function setError(message = '') {
+      if (!message) {
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+        return;
+      }
+      errorBox.style.display = 'block';
+      errorBox.textContent = message;
+    }
+
+    function resetUI() {
+      currentData = null;
+      setMeta([]);
+      setError('');
+      copyBtn.disabled = true;
+      resultWrap.style.display = 'none';
+      emptyState.style.display = 'grid';
+      plistPath.textContent = '';
+      summaryGrid.innerHTML = '';
+      jsonOutput.textContent = '';
+      rawOutput.textContent = '';
+    }
+
+    function toText(uint8) {
+      return new TextDecoder('utf-8', { fatal: false }).decode(uint8);
+    }
+
+    function isBinaryPlist(uint8) {
+      return toText(uint8.slice(0, 8)).startsWith('bplist');
+    }
+
+    function isXmlPlist(text) {
+      const trimmed = text.trimStart();
+      return trimmed.startsWith('<?xml') || text.includes('<plist');
+    }
+
+    function safeJson(obj) {
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return 'Unable to serialize plist content.';
+      }
+    }
+
+    function renderSummary(data, path) {
+      const rows = [
+        ['Display Name', data.CFBundleDisplayName || data.CFBundleName || '—'],
+        ['Bundle Identifier', data.CFBundleIdentifier || '—'],
+        ['Version', data.CFBundleShortVersionString || '—'],
+        ['Build', data.CFBundleVersion || '—'],
+        ['Executable', data.CFBundleExecutable || '—'],
+        ['Minimum iOS', data.MinimumOSVersion || '—']
+      ];
+
+      plistPath.textContent = path;
+      summaryGrid.innerHTML = rows.map(([label, value]) => `
+        <div class="kv">
+          <div class="kv-label">${escapeHtml(label)}</div>
+          <div class="kv-value">${escapeHtml(value)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function extractPlistFromIpa(file) {
+      const zip = await JSZip.loadAsync(file);
+      const allPaths = Object.keys(zip.files);
+
+      const path = allPaths.find(p => /^Payload\/[^/]+\.app\/Info\.plist$/i.test(p.replace(/\\/g, '/')));
+      if (!path) throw new Error('Info.plist was not found. Check that this is a valid IPA.');
+
+      const entry = zip.file(path);
+      if (!entry) throw new Error('The IPA was opened, but Info.plist could not be read.');
+
+      const uint8 = await entry.async('uint8array');
+      let parsed;
+      let rawPreview;
+
+      if (isBinaryPlist(uint8)) {
+        const sliced = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
+        const parsedArray = parseBuffer(sliced);
+        parsed = Array.isArray(parsedArray) ? parsedArray[0] : parsedArray;
+        rawPreview = 'Binary Info.plist detected. Parsed successfully and displayed in JSON format.';
+      } else {
+        const text = toText(uint8);
+        if (!isXmlPlist(text)) throw new Error('Unsupported plist format.');
+        parsed = plist.parse(text);
+        rawPreview = text;
+      }
+
+      return { path, parsed, rawPreview };
+    }
+
+    async function handleFile(file) {
+      resetUI();
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith('.ipa')) {
+        setError('Please upload an .ipa file.');
+        return;
+      }
+
+      setMeta([file.name, 'Parsing']);
+
+      try {
+        const { path, parsed, rawPreview } = await extractPlistFromIpa(file);
+        currentData = parsed;
+        renderSummary(parsed, path);
+        jsonOutput.textContent = safeJson(parsed);
+        rawOutput.textContent = rawPreview;
+        copyBtn.disabled = false;
+        emptyState.style.display = 'none';
+        resultWrap.style.display = 'grid';
+        setMeta([file.name, 'Loaded']);
+      } catch (err) {
+        setError(err?.message || 'Failed to parse the IPA.');
+        setMeta([file.name, 'Failed']);
+      }
+    }
+
+    ipaFile.addEventListener('change', (e) => handleFile(e.target.files?.[0]));
+
+    resetBtn.addEventListener('click', () => {
+      ipaFile.value = '';
+      resetUI();
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      if (!currentData) return;
+      try {
+        await navigator.clipboard.writeText(safeJson(currentData));
+        const original = copyBtn.textContent;
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => copyBtn.textContent = original, 1200);
+      } catch {
+        setError('Clipboard copy failed in this browser.');
+      }
+    });
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      uploadZone.addEventListener(evt, e => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+      uploadZone.addEventListener(evt, e => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+      });
+    });
+
+    uploadZone.addEventListener('drop', e => {
+      const file = e.dataTransfer?.files?.[0];
+      if (file) handleFile(file);
+    });
+
+    resetUI();
+  </script>
+</body>
+</html>
